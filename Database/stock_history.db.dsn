@@ -1,0 +1,15 @@
+[ODBC]
+DRIVER=Microsoft Access dBASE Driver (*.dbf, *.ndx, *.mdx)
+UID=admin
+UserCommitSync=Yes
+Threads=3
+Statistics=0
+SafeTransactions=0
+PageTimeout=600
+MaxScanRows=8
+MaxBufferSize=2048
+FIL=dBASE 5.0
+DriverId=533
+Deleted=1
+DefaultDir=D:\Professional_WorkTools\Github\RodWal-Capital-Insights\Database
+CollatingSequence=ASCII
