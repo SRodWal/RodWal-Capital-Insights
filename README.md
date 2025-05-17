@@ -7,5 +7,6 @@ What It Offers
 - Financial Metrics: Analyze key indicators like volatility and returns.
 - Educational Content: Learn best practices for portfolio building.
 - Community Engagement: Connect with others and exchange ideas.
+
 RodWal Capital Insights is designed for investors who want a clear, structured way to manage their assets and improve their strategies. Whether you're tracking your portfolio or sharing insights, this platform makes it simple and effective.
 
