@@ -1,10 +1,11 @@
 import pandas as pd
 import yfinance as yf
+import numpy as np
 
 def update_portfolio_close_price(input_file, output_file):
     """
     Reads tickers from an Excel file, fetches latest close price, GICS sector, dividend yield,
-    P/E ratios, PEG, EBITDA margin, net income, EPS, and Net Income %, and writes the results to a new Excel file.
+    P/E ratios, PEG, EBITDA margin, net income, EPS, Net Income %, and Volatility %, and writes the results to a new Excel file.
     """
     # Load the Excel file
     df = pd.read_excel(input_file)
@@ -45,6 +46,14 @@ def update_portfolio_close_price(input_file, output_file):
             if ebitda_margin not in ["N/A", None]:
                 ebitda_margin = ebitda_margin * 100
 
+            # Volatility calculation (annualized std dev of daily returns, last 1 year)
+            hist = stock.history(period="1y")
+            if not hist.empty and "Close" in hist.columns:
+                returns = hist["Close"].pct_change().dropna()
+                volatility = returns.std() * np.sqrt(252) * 100  # annualized, in percent
+            else:
+                volatility = "N/A"
+
         except Exception as e:
             latest_close = f"Error: {e}"
             gics_sector = "Unknown"
@@ -57,6 +66,7 @@ def update_portfolio_close_price(input_file, output_file):
             net_income_pct = "N/A"
             eps = "N/A"
             forward_eps = "N/A"
+            volatility = "N/A"
 
         output_data.append({
             "Chapter": chapter,
@@ -72,12 +82,13 @@ def update_portfolio_close_price(input_file, output_file):
             "Net Income to Common": net_income,
             "Net Income %": net_income_pct,
             "EPS": eps,
-            "Forward EPS": forward_eps
+            "Forward EPS": forward_eps,
+            "Volatility %": volatility
         })
 
     output_df = pd.DataFrame(output_data)
     output_df.to_excel(output_file, index=False)
-    print(f"Updated data (including Net Income %) has been saved to {output_file}")
+    print(f"Updated data (including Net Income % and Volatility %) has been saved to {output_file}")
 
 # Example usage:
-update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_used.xlsx")
+update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_Updated.xlsx")
