@@ -33,34 +33,44 @@ for sheet, rows in zip(sheet_names, skip_rows):
     dfs[sheet] = df
 
 # Replace XTB suffix .US with empty string, UK tickers with .L, NL tickers with .AS, MC with PA:
-initial_suffix = [".US", ".UK", ".NL", ".FR",".ES"]
+initial_suffix = [".US", ".UK", ".NL", ".FR", ".ES"]
 final_suffix = ["", ".L", ".AS", ".PA", ".MC"]
-initial_list = list(set(dfs["CASH OPERATION HISTORY"]['Symbol']))
-
-# Use list comprehension for replacement
-for x, y in zip(initial_suffix, final_suffix):
-    initial_list = [s.replace(x, y) if isinstance(s, str) else s for s in initial_list]
-
-# Special mapping for known exceptions
 special_map = {
     "VIX": "^VIX",
     "USDJPY": "JPY=X",
     "USDMXN": "MXN=X",
-    "US500": "SPX"
+    "US500": "SPY",
+    "GOLD": "GC=F"
 }
 
-# Apply the mapping
-tickers_used = [special_map.get(s, s) for s in initial_list]
+def fix_ticker(symbol):
+    if not isinstance(symbol, str):
+        return symbol
+    # Apply suffix replacement
+    for x, y in zip(initial_suffix, final_suffix):
+        if symbol.endswith(x):
+            symbol = symbol.replace(x, y)
+    # Apply special mapping
+    return special_map.get(symbol, symbol)
 
-tickers_used = initial_list
+# Apply to all symbols in the list
+initial_list = list(set(dfs["CASH OPERATION HISTORY"]['Symbol']))
+tickers_used = [fix_ticker(s) for s in initial_list]
+
 print("Used Tickers: ", tickers_used)
+
 # Ensure the folder exists
 os.makedirs("Stock Selection", exist_ok=True)
 
 tickers_df = pd.DataFrame({'Ticker': tickers_used})
-tickers_df.to_excel(os.path.join("Stock Selection", "tickers_used.xlsx"), index=False)
+tickers_df.to_excel(os.path.join("Stock Selection", "tickers_update.xlsx"), index=False)
 
 #update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_used.xlsx")
+
+# Apply fix_ticker to each DataFrame before saving
+for sheet, df in dfs.items():
+    if "Symbol" in df.columns:
+        df["Symbol"] = df["Symbol"].apply(fix_ticker)
 
 # Save the DataFrames to Excel files
 sheet_names_output = ["CLOSED POSITION HISTORY", "OPEN POSITION", "CASH OPERATION"]

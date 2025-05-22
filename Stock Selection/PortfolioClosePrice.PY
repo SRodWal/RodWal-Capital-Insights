@@ -91,4 +91,4 @@ def update_portfolio_close_price(input_file, output_file):
     print(f"Updated data (including Net Income % and Volatility %) has been saved to {output_file}")
 
 # Example usage:
-update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_Updated.xlsx")
+update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_used.xlsx")
