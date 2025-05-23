@@ -37,17 +37,30 @@ def init_db(db_path=DB_PATH):
     conn.commit()
     conn.close()
 
+EUR_SUFFIXES = [".AS", ".PA", ".DE", ".MC"]
+
+def is_eur_ticker(ticker):
+    return any(ticker.endswith(suffix) for suffix in EUR_SUFFIXES)
+
+def get_eurusd_rates(start, end):
+    fx = yf.Ticker("EURUSD=X")
+    fx_hist = fx.history(start=start, end=end)
+    return fx_hist["Close"]
+
 def save_prices_and_dividends(ticker_list, db_path=DB_PATH, period="max"):
-    """Download and store historical prices and dividends for a list of tickers."""
     conn = sqlite3.connect(db_path)
     for ticker in ticker_list:
         print(f"Fetching data for {ticker}...")
         try:
             data = yf.Ticker(ticker)
             hist = data.history(period=period)
-            # Save prices
             if not hist.empty:
-                # Use .get() to avoid KeyError if 'Adj Close' is missing
+                if is_eur_ticker(ticker):
+                    print(f"Converting {ticker} prices to USD...")
+                    fx_rates = get_eurusd_rates(hist.index.min(), hist.index.max())
+                    fx_rates = fx_rates.reindex(hist.index, method='ffill')
+                    for col in ["Open", "High", "Low", "Close"]:
+                        hist[col] = hist[col] * fx_rates
                 price_records = [
                     (
                         ticker,
@@ -56,7 +69,7 @@ def save_prices_and_dividends(ticker_list, db_path=DB_PATH, period="max"):
                         row.get("High", None),
                         row.get("Low", None),
                         row.get("Close", None),
-                        row.get("Adj Close", row.get("Close", None)),  # fallback to Close if Adj Close missing
+                        row.get("Adj Close", row.get("Close", None)),
                         row.get("Volume", None)
                     )
                     for idx, row in hist.iterrows()
