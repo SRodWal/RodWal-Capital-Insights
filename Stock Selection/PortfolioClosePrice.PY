@@ -1,6 +1,6 @@
-import pandas as pd
-import yfinance as yf
-import numpy as np
+import pandas as pd # type: ignore
+import yfinance as yf # type: ignore
+import numpy as np # type: ignore
 
 def update_portfolio_close_price(input_file, output_file):
     """
