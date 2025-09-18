@@ -1,6 +1,59 @@
 import pandas as pd # type: ignore
 import yfinance as yf # type: ignore
 import numpy as np # type: ignore
+import requests
+
+def get_forward_eps_from_yahoo(ticker: str, timeout: int = 15):
+    """
+    Returns a robust Forward EPS for `ticker`.
+
+    Priority:
+      1) Yahoo earningsTrend: trend period '+1y' -> earningsEstimate.avg
+      2) Implied EPS from price / forwardPE (from yfinance)
+      3) info['forwardEps'] as last fallback
+
+    Returns float or None.
+    """
+    # --- 1) Primary: earningsTrend '+1y' average EPS ---
+    try:
+        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}"
+        params = {"modules": "earningsTrend"}
+        r = requests.get(url, params=params, timeout=timeout)
+        r.raise_for_status()
+        js = r.json()
+        trend = js["quoteSummary"]["result"][0]["earningsTrend"]["trend"]
+        plus1y = next((t for t in trend if t.get("period") == "+1y"), None)
+        if plus1y:
+            avg_eps = plus1y["earningsEstimate"]["avg"]
+            if isinstance(avg_eps, (int, float)):
+                return float(avg_eps)
+    except Exception:
+        pass  # fall through to implied / fallback
+
+    # Prepare yfinance objects once for the fallbacks
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info if hasattr(stock, "info") else {}
+    except Exception:
+        stock, info = None, {}
+
+    # --- 2) Fallback: implied from price / forwardPE ---
+    try:
+        if stock is not None:
+            price = float(stock.history(period="1d")["Close"].iloc[-1])
+            fwd_pe = info.get("forwardPE")
+            if fwd_pe and float(fwd_pe) != 0:
+                return price / float(fwd_pe)
+    except Exception:
+        pass
+
+    # --- 3) Last resort: info['forwardEps'] ---
+    try:
+        val = info.get("forwardEps")
+        return float(val) if isinstance(val, (int, float)) else None
+    except Exception:
+        return None
+
 
 def update_portfolio_close_price(input_file, output_file):
     """
@@ -21,6 +74,7 @@ def update_portfolio_close_price(input_file, output_file):
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
+            name = info.get("shortName", name)
             latest_close = stock.history(period="1d")["Close"].iloc[-1]
             gics_sector = info.get("sector", "Unknown")
             dividend_yield = info.get("dividendYield", "N/A")
@@ -32,7 +86,7 @@ def update_portfolio_close_price(input_file, output_file):
             net_income = info.get("netIncomeToCommon", "N/A")
             total_revenue = info.get("totalRevenue", None)
             eps = info.get("trailingEps", "N/A")
-            forward_eps = info.get("forwardEps", "N/A")
+            forward_eps = get_forward_eps_from_yahoo(ticker)
 
             # Net Income Margin calculation
             if net_income not in ["N/A", None] and total_revenue not in ["N/A", None, 0]:
