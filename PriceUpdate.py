@@ -38,12 +38,21 @@ def init_db(db_path=DB_PATH):
     conn.close()
 
 EUR_SUFFIXES = [".AS", ".PA", ".DE", ".MC"]
+GBP_SUFFIXES = [".L", ".LN"]
 
 def is_eur_ticker(ticker):
     return any(ticker.endswith(suffix) for suffix in EUR_SUFFIXES)
 
+def is_gbp_ticker(ticker):
+    return any(ticker.endswith(suffix) for suffix in GBP_SUFFIXES)
+
 def get_eurusd_rates(start, end):
     fx = yf.Ticker("EURUSD=X")
+    fx_hist = fx.history(start=start, end=end)
+    return fx_hist["Close"]
+
+def get_gbpusd_rates(start, end):
+    fx = yf.Ticker("GBPUSD=X")
     fx_hist = fx.history(start=start, end=end)
     return fx_hist["Close"]
 
@@ -58,6 +67,12 @@ def save_prices_and_dividends(ticker_list, db_path=DB_PATH, period="max"):
                 if is_eur_ticker(ticker):
                     print(f"Converting {ticker} prices to USD...")
                     fx_rates = get_eurusd_rates(hist.index.min(), hist.index.max())
+                    fx_rates = fx_rates.reindex(hist.index, method='ffill')
+                    for col in ["Open", "High", "Low", "Close"]:
+                        hist[col] = hist[col] * fx_rates
+                elif is_gbp_ticker(ticker):
+                    print(f"Converting {ticker} prices to USD...")
+                    fx_rates = get_gbpusd_rates(hist.index.min(), hist.index.max())
                     fx_rates = fx_rates.reindex(hist.index, method='ffill')
                     for col in ["Open", "High", "Low", "Close"]:
                         hist[col] = hist[col] * fx_rates

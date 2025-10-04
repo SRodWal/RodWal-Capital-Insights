@@ -40,7 +40,8 @@ special_map = {
     "USDJPY": "JPY=X",
     "USDMXN": "MXN=X",
     "US500": "SPY",
-    "GOLD": "GC=F"
+    "GOLD": "GC=F",
+    'BLX1': 'BLX',
 }
 
 def fix_ticker(symbol):
