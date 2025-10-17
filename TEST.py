@@ -1,41 +1,28 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Sep 13 13:23:38 2025
+import urllib.request
+import json
 
-@author: serw1
-"""
+def get_bch_hnl_fx():
+    try:
+        url = "https://bchapi-am.azure-api.net/api/v1/indicadores/97/cifras?formato=Json&reciente=1"
 
-import pandas as pd # type: ignore
-import yfinance as yf # type: ignore
-import numpy as np # type: ignore
-import requests
-
-stock = yf.Ticker("APA")
-info = stock.info
-latest_close = stock.history(period="1d")["Close"].iloc[-1]
-gics_sector = info.get("sector", "Unknown")
-dividend_yield = info.get("dividendYield", "N/A")
-
-trailing_pe = info.get("trailingPE", "N/A")
-forward_pe = info.get("forwardPE", "N/A")
-peg_ratio = info.get("pegRatio", "N/A")
-ebitda_margin = info.get("ebitdaMargins", "N/A")
-net_income = info.get("netIncomeToCommon", "N/A")
-total_revenue = info.get("totalRevenue", None)
-eps = info.get("trailingEps", "N/A")
-forward_eps = info.get("forwardEps", "N/A")
-
-data = {
-            "Close Price": latest_close,
-            "GICS Sector": gics_sector,
-            "Expected Dividend Yield %": dividend_yield,
-            "Trailing P/E": trailing_pe,
-            "Forward P/E": forward_pe,
-            "PEG Ratio": peg_ratio,
-            "EBITDA Margin %": ebitda_margin,
-            "Net Income to Common": net_income,
-            "EPS": eps,
-            "Forward EPS": forward_eps,
+        hdr = {
+            'Cache-Control': 'no-cache',
+            'clave': 'd5f2cf52e4c0415195d3d05a84f7ceb2',
         }
 
-print(data)
+        req = urllib.request.Request(url, headers=hdr)
+        req.get_method = lambda: 'GET'
+        response = urllib.request.urlopen(req)
+
+        raw_data = response.read()  # Read once
+        decoded_data = raw_data.decode('utf-8')  # Decode bytes to string
+        json_data = json.loads(decoded_data)  # Parse JSON
+
+        valor = json_data[0]['Valor']  # Extract the numeric value
+        return valor
+
+    except Exception as e:
+        print("BCH FX ERROR - ", e)
+        return None
+
+x = get_bch_hnl_fx()
