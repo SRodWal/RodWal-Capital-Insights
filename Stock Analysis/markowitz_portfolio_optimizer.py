@@ -39,7 +39,7 @@ def Selector(lst):
     return selected_items, risk_aversion
 
 # Create the dataframe from the given data
-f_dir = r"D:/Professional_WorkTools/Github/StockSillines/Open Positions.xlsx"
+f_dir = r"Stock Analysis/Open_Positions.xlsx"
 #f_dir = r"D:/Professional_WorkTools/Github/StockSillines/Portfolio Expected Returns.xlsx"  
 portfolio_df = pd.read_excel(f_dir)
 portfolio_df = portfolio_df[["Chapter", "Ticker", "Volume", "Price", "Expected Return QoQ%", "Volatility", "Value"]]

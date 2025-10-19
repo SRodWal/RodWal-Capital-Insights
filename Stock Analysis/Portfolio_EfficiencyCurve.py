@@ -45,7 +45,7 @@ def Selector(lst):
 
 # Read data from Excel
 #f_dir = r"D:/Professional_WorkTools/Github/StockSillines/Portfolio Expected Returns.xlsx"
-f_dir = r"D:/Professional_WorkTools/Github/StockSillines/Open Positions.xlsx"
+f_dir = r"Stock Analysis/Open_Positions.xlsx"
 portfolio_df = pd.read_excel(f_dir)
 portfolio_df = portfolio_df[["Chapter", "Ticker", "Volume", "Price", "Expected Return QoQ%", "Volatility", "Value"]]
 Selected_Chapters, risk_aversion = Selector(list(set(portfolio_df.Chapter)))
