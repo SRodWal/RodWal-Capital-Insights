@@ -1,28 +1,64 @@
-import urllib.request
-import json
 
-def get_bch_hnl_fx():
-    try:
-        url = "https://bchapi-am.azure-api.net/api/v1/indicadores/97/cifras?formato=Json&reciente=1"
+import requests
 
-        hdr = {
-            'Cache-Control': 'no-cache',
-            'clave': 'd5f2cf52e4c0415195d3d05a84f7ceb2',
-        }
+API_KEY = "TF28ZZDMC9JZOOA7"  # your key
+SYMBOL = "SQM"               # NYSE ticker for ING Group N.V.
 
-        req = urllib.request.Request(url, headers=hdr)
-        req.get_method = lambda: 'GET'
-        response = urllib.request.urlopen(req)
+url = "https://www.alphavantage.co/query"
+params = {
+    "function": "OVERVIEW",
+    "symbol": SYMBOL,
+    "apikey": API_KEY
+}
 
-        raw_data = response.read()  # Read once
-        decoded_data = raw_data.decode('utf-8')  # Decode bytes to string
-        json_data = json.loads(decoded_data)  # Parse JSON
+r = requests.get(url, params=params, timeout=20)
+data = r.json()
 
-        valor = json_data[0]['Valor']  # Extract the numeric value
-        return valor
 
-    except Exception as e:
-        print("BCH FX ERROR - ", e)
-        return None
+# Extract relevant fields
+Name = data.get("Name")
+Sector = data.get("Sector")
+Industry = data.get("Industry")
+TargetPrice = data.get('AnalystTargetPrice')
+dividend_yield = data.get("DividendYield")
+dividend_per_share = data.get("DividendPerShare")
+ex_dividend_date = data.get("ExDividendDate")
+TrailingPE = data.get('TrailingPE')
+ForwardPE = data.get('ForwardPE')
+PEGRatio = data.get('PEGRatio')
+OperatingMarginTTM = data.get('OperatingMarginTTM')
+ProfitMargin = data.get('ProfitMargin')
+DilutedEPSTTM = data.get('DilutedEPSTTM')
+CURR = data.get('Currency')
+RevenueTTM = data.get('RevenueTTM')
 
-x = get_bch_hnl_fx()
+# Print nicely
+print(f"""
+Name: {Name}
+Sector: {Sector}
+Industry: {Industry}
+Analyst Target Price: {TargetPrice}
+Dividend Yield: {dividend_yield}
+Dividend per Share: {dividend_per_share}
+Ex-Dividend Date: {ex_dividend_date}
+Trailing PE: {TrailingPE}
+Forward PE: {ForwardPE}
+PEG Ratio: {PEGRatio}
+Operating Margin (TTM): {OperatingMarginTTM}
+Profit Margin: {ProfitMargin}
+Diluted EPS (TTM): {DilutedEPSTTM}
+Currency: {CURR}
+Revenue (TTM): {RevenueTTM}
+""")
+
+params = {
+    "function": "INCOME_STATEMENT",
+    "symbol": SYMBOL,
+    "apikey": API_KEY
+}
+
+r = requests.get(url, params=params, timeout=20)
+data = r.json()
+
+
+

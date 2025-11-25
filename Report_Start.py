@@ -1,7 +1,8 @@
 import pandas as pd
 import os
+import numpy as np
 
-#from PortfolioClosePrice import update_portfolio_close_price
+from PortfolioClosePrice import update_portfolio_close_price
 
 #Lets read the excel file in the same directory as this script
 # Get the directory of the current script
@@ -25,16 +26,16 @@ dfs = {}
 for sheet, rows in zip(sheet_names, skip_rows):
     print(f"\nData in {sheet} sheet:")
     df = pd.read_excel(f_dir, sheet_name=sheet, skiprows=rows)
-    print(df.head())  # Display the first few rows of the DataFrame
+    #print(df.head())  # Display the first few rows of the DataFrame
     print(f"Number of rows: {len(df)}")
     print(f"Number of columns: {len(df.columns)}")
-    print(f"Columns: {df.columns.tolist()}")
+    #print(f"Columns: {df.columns.tolist()}")
     print("\n")
     dfs[sheet] = df
 
 # Replace XTB suffix .US with empty string, UK tickers with .L, NL tickers with .AS, MC with PA:
-initial_suffix = [".US", ".UK", ".NL", ".FR", ".ES"]
-final_suffix = ["", ".L", ".AS", ".PA", ".MC"]
+initial_suffix = [".US", ".UK", ".NL", ".FR", ".ES",".IT"]
+final_suffix = ["", ".L", ".AS", ".PA", ".MC",".MI"]
 special_map = {
     "VIX": "^VIX",
     "USDJPY": "JPY=X",
@@ -42,6 +43,8 @@ special_map = {
     "US500": "SPY",
     "GOLD": "GC=F",
     'BLX1': 'BLX',
+    "APSDEX.DE": 'EXXW.DE',
+    "CIG1": "CIG"
 }
 
 def fix_ticker(symbol):
@@ -56,17 +59,24 @@ def fix_ticker(symbol):
 
 # Apply to all symbols in the list
 initial_list = list(set(dfs["CASH OPERATION HISTORY"]['Symbol']))
-tickers_used = [fix_ticker(s) for s in initial_list]
+tickers_used = [fix_ticker(s) for s in initial_list if not (isinstance(s, float) and np.isnan(s))]
+tracked_tickers_df = pd.read_excel("Stock Selection/tickers_used.xlsx")
+tracked_tickers = tracked_tickers_df["Ticker"].tolist()
 
-print("Used Tickers: ", tickers_used)
+additional_tickers = [ticker for ticker in tickers_used if ticker not in tracked_tickers]
+if len(additional_tickers) > 0:
+    print("Adding additional tracked tickers: ", additional_tickers)
+    ## Add aditional tickers to the tracker dataframe
+    new_rows = pd.DataFrame({'Ticker': additional_tickers})
+    tracked_tickers_df = pd.concat([tracked_tickers_df, new_rows], ignore_index=True)
+    tracked_tickers_df.to_excel("Stock Selection/tickers_used.xlsx", index=False)
+
 
 # Ensure the folder exists
 os.makedirs("Stock Selection", exist_ok=True)
 
-tickers_df = pd.DataFrame({'Ticker': tickers_used})
-tickers_df.to_excel(os.path.join("Stock Selection", "tickers_update.xlsx"), index=False)
-
-#update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_used.xlsx")
+print('Updating Portfolio Close Price')
+update_portfolio_close_price("Stock Selection/tickers_used.xlsx", "Stock Selection/tickers_used.xlsx")
 
 # Apply fix_ticker to each DataFrame before saving
 for sheet, df in dfs.items():
@@ -79,7 +89,3 @@ for sheet, df in zip(sheet_names_output, dfs.values()):
     output_file = os.path.join("Stock Selection", f"{sheet}.xlsx")
     df.to_excel(output_file, index=False)
     print(f"Saved {sheet} to {output_file}")
-
-
-
-

@@ -10,7 +10,7 @@ import streamlit as st
 # List of stock tickers and chapters:
 portfolio_dir = r'Stock Selection/tickers_used.xlsx'
 portfolio_df = pd.read_excel(portfolio_dir)[['Chapter','Name','Ticker','GICS Sector']]
-portfolio_df = portfolio_df.loc[portfolio_df['Chapter']=="Basic Materials"]
+portfolio_df = portfolio_df.loc[portfolio_df['Chapter']=="ETF"]
 
 # Create GUI
 st.title("Stock Correlation Matrix")
