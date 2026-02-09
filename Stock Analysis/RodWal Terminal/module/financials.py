@@ -228,115 +228,143 @@ def update_income_statements_for_list(
         time.sleep(pause_seconds)
     return stats
 
-### GRAPHS
 
+# ---------- Graphs ----------
 
 import sqlite3
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 
-
-
 DB_PATH = "Database/stock_history.db"
 ANNUAL_TABLE = "income_statements_annual"
 QUARTERLY_TABLE = "income_statements_quarterly"
 
 # Ensure our template is registered
-
 from module_styles import register_bloomberg_like_template, human_biz, apply_business_ticks
 BLOOMBERG_TMPL = register_bloomberg_like_template()
 
+ANNUAL_COLOR = "#FB8B1E"   # orange accent
+QUARTERLY_COLOR = "#E9A25A"  # electric blue accent
+
 def _load_revenue(symbol: str):
     with sqlite3.connect(DB_PATH) as conn:
-        annual = pd.read_sql_query(f"""
+        annual = pd.read_sql_query(
+            f"""
             SELECT fiscalDateEnding, value 
             FROM {ANNUAL_TABLE}
             WHERE symbol=? AND metric='totalRevenue'
             ORDER BY fiscalDateEnding ASC
-        """, conn, params=[symbol])
+            """,
+            conn, params=[symbol]
+        )
 
-        quarterly = pd.read_sql_query(f"""
+        quarterly = pd.read_sql_query(
+            f"""
             SELECT fiscalDateEnding, value 
             FROM {QUARTERLY_TABLE}
             WHERE symbol=? AND metric='totalRevenue'
             ORDER BY fiscalDateEnding ASC
-        """, conn, params=[symbol])
+            """,
+            conn, params=[symbol]
+        )
 
-        currency = pd.read_sql_query(f"""
+        currency = pd.read_sql_query(
+            f"""
             SELECT reportedCurrency
             FROM {ANNUAL_TABLE}
             WHERE symbol=? AND metric='totalRevenue'
-            """, conn, params=[symbol]).squeeze()
+            """,
+            conn, params=[symbol]
+        ).squeeze()
         if not currency.empty:
             currency = currency.iloc[0]
+        else:
+            currency = ""
 
     # Cleanup
-    annual["fiscalDateEnding"]   = pd.to_datetime(annual["fiscalDateEnding"], errors="coerce")
+    annual["fiscalDateEnding"]    = pd.to_datetime(annual["fiscalDateEnding"], errors="coerce")
     quarterly["fiscalDateEnding"] = pd.to_datetime(quarterly["fiscalDateEnding"], errors="coerce")
-    annual  = annual.dropna().rename(columns={"value": "totalRevenue"})
+    annual    = annual.dropna().rename(columns={"value": "totalRevenue"})
     quarterly = quarterly.dropna().rename(columns={"value": "totalRevenue"})
     return annual, quarterly, currency
+
 
 def plot_bbg_style_revenue(symbol: str):
     annual, quarterly, currency = _load_revenue(symbol)
     if annual.empty and quarterly.empty:
         raise ValueError(f"No totalRevenue data for {symbol}")
 
-    # Subsets (keep simple)
-    a5, q5   = annual.tail(5),  quarterly.tail(20)   # ~5Y quarters
-    a10, q10 = annual.tail(10), quarterly.tail(40)   # ~10Y quarters
+    # Subsets
+    a5, q5     = annual.tail(5),   quarterly.tail(20)   # ~5Y quarters
+    a10, q10   = annual.tail(10),  quarterly.tail(40)   # ~10Y quarters
     aall, qall = annual, quarterly
 
     fig = go.Figure()
 
     # Initial ALL view
     fig.add_bar(
-        x=aall["fiscalDateEnding"], 
+        x=aall["fiscalDateEnding"],
         y=aall["totalRevenue"],
         name="Annual Revenue",
-        marker_color="#FB8B1E"  # orange accent
+        marker_color=ANNUAL_COLOR
     )
     fig.add_bar(
-        x=qall["fiscalDateEnding"], 
+        x=qall["fiscalDateEnding"],
         y=qall["totalRevenue"],
         name="Quarterly Revenue",
-        marker_color="#0068FF",  # electric blue accent
-        visible="legendonly"
+        marker_color=QUARTERLY_COLOR,
+        visible="legendonly"  # hidden by default
     )
 
-
-    # Bloomberg-like layout
+    # Bloomberg-like base layout
     fig.update_layout(
         template=BLOOMBERG_TMPL,
         barmode="group",
-        title=f"{symbol} — Annual & Quaterly Values ({currency})",
-    )
-
-
-    fig.update_layout(
-        margin=dict(l=140, r=20, t=60, b=40),  # extra left space for the legend
+        title=dict(
+            text=f"{symbol} — Annual & Quarterly Values ({currency})",
+            x=0.5, xanchor="center",
+        ),
+        # Reserve space on top for two rows of buttons + labels
+        margin=dict(l=60, r=20, t=120, b=50),
+        # Legend: horizontal near top (keeps top area clean yet visible)
         legend=dict(
-            orientation="v",
-            x=-0.05,          # slightly outside the plotting area to the left
-            xanchor="right",  # anchor the legend’s right edge to the plotting area edge
-            y=1.0,
-            yanchor="top"
-        )
+            orientation="h",
+            yanchor="bottom", y=0.99,
+            xanchor="left",   x=0.0,
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(size=11)
+        ),
+        # Hover styling that fits dark Bloomberg feel (template usually handles most)
+        hoverlabel=dict(
+            bgcolor="#1C1F25",
+            font_size=12,
+            font_color="#E6E6E6"
+        ),
+        # Gentle transitions on updates
+        transition=dict(duration=250, easing="cubic-in-out"),
+        # Axes: subtle gridlines for dark background
+        xaxis=dict(showgrid=False, zeroline=False, tickfont=dict(size=11)),
+        yaxis=dict(gridcolor="#23272E", zeroline=False, tickfont=dict(size=11)),
     )
 
-
-
-    # In‑chart horizon buttons (ALL / 10Y / 5Y)
+    # Two rows of centered, pill-styled buttons
     fig.update_layout(
         updatemenus=[
+            # Row 1: Horizon buttons
             dict(
                 type="buttons",
                 direction="right",
-                x=0.0, y=1.15,
+                x=0, y=1.15,
+                xanchor="center", yanchor="top",
                 showactive=True,
+                active=0,  # default: ALL
+                bgcolor="#1C1F25",
+                bordercolor="#2A2F36",
+                borderwidth=1,
+                pad=dict(r=4, l=4, t=4, b=4),
                 buttons=[
-                    # ALL (keep quarterly hidden as default)
+                    # ALL (Quarterly hidden)
                     dict(
                         label="ALL",
                         method="update",
@@ -344,13 +372,13 @@ def plot_bbg_style_revenue(symbol: str):
                             {
                                 "x": [aall["fiscalDateEnding"], qall["fiscalDateEnding"]],
                                 "y": [aall["totalRevenue"],     qall["totalRevenue"]],
-                                "marker": [{"color": "#FB8B1E"}, {"color": "#0068FF"}],
-                                "visible": [True, "legendonly"]  # Annual shown, Quarterly hidden
+                                "marker": [{"color": ANNUAL_COLOR}, {"color": QUARTERLY_COLOR}],
+                                "visible": [True, "legendonly"],
                             },
                             {"title": f"{symbol} — Total Revenue (ALL)"}
                         ],
                     ),
-                    # Last 10Y (you can choose to show quarterly here)
+                    # Last 10Y
                     dict(
                         label="Last 10Y",
                         method="update",
@@ -358,8 +386,8 @@ def plot_bbg_style_revenue(symbol: str):
                             {
                                 "x": [a10["fiscalDateEnding"], q10["fiscalDateEnding"]],
                                 "y": [a10["totalRevenue"],     q10["totalRevenue"]],
-                                "marker": [{"color": "#FB8B1E"}, {"color": "#0068FF"}],
-                                "visible": [True, "legendonly"]  # or [True, True] if you want it visible
+                                "marker": [{"color": ANNUAL_COLOR}, {"color": QUARTERLY_COLOR}],
+                                "visible": [True, "legendonly"],
                             },
                             {"title": f"{symbol} — Total Revenue (10 Years)"}
                         ],
@@ -372,41 +400,67 @@ def plot_bbg_style_revenue(symbol: str):
                             {
                                 "x": [a5["fiscalDateEnding"], q5["fiscalDateEnding"]],
                                 "y": [a5["totalRevenue"],     q5["totalRevenue"]],
-                                "marker": [{"color": "#FB8B1E"}, {"color": "#0068FF"}],
-                                "visible": [True, "legendonly"]
+                                "marker": [{"color": ANNUAL_COLOR}, {"color": QUARTERLY_COLOR}],
+                                "visible": [True, "legendonly"],
                             },
                             {"title": f"{symbol} — Total Revenue (5 Years)"}
                         ],
                     ),
-
-                    # Quick toggles for Quarterly (do not change data)
+                ],
+            ),
+            # Row 2: Frequency buttons
+            dict(
+                type="buttons",
+                direction="right",
+                x=0.2, y=1.15,
+                xanchor="center", yanchor="top",
+                showactive=True,
+                active=0,  # default: Annual
+                bgcolor="#1C1F25",
+                bordercolor="#2A2F36",
+                borderwidth=1,
+                pad=dict(r=4, l=4, t=4, b=4),
+                buttons=[
                     dict(
                         label="Annual",
                         method="update",
-                        args=[{"visible": [True,"legendonly"]}, {}]  # show both traces
+                        args=[{"visible": [True, "legendonly"]}, {}]
                     ),
                     dict(
                         label="Quarterly",
                         method="update",
-                        args=[{"visible": ["legendonly",True]}, {}]  # hide quarterly again
+                        args=[{"visible": ["legendonly", True]}, {}]
                     ),
-                ]
-            )
+                ],
+            ),
         ]
     )
 
-    
-    # For annual series
+    # Group labels above menus (annotation)
+    fig.add_annotation(
+        x=-0.01, y=1.19, xref="paper", yref="paper",
+        text="Horizon", showarrow=False,
+        font=dict(size=12, color="#AEB4BC")
+    )
+    fig.add_annotation(
+        x=0.175, y=1.19, xref="paper", yref="paper",
+        text="Frequency", showarrow=False,
+        font=dict(size=12, color="#AEB4BC")
+    )
+
+    # Hover templates and humanized values
     fig.data[0].hovertemplate = "%{x|%Y}<br>Annual: %{customdata}<extra></extra>"
     fig.data[0].customdata = [human_biz(v) for v in fig.data[0].y]
 
-    # For quarterly series
     fig.data[1].hovertemplate = "%{x|%Y-%m}<br>Quarterly: %{customdata}<extra></extra>"
     fig.data[1].customdata = [human_biz(v) for v in fig.data[1].y]
+
+    # Business ticks from your style module
     apply_business_ticks(fig)
 
     fig.show()
     return fig
+
 
 
 
